@@ -1,9 +1,9 @@
-# CivSwitch — Android Edition
+# CivSwitch - No Pico but Androido
 
 > [!IMPORTANT]
-> **[CivSwitch](https://github.com/Gezine/CivSwitch) is an exploit by [Gezine](https://github.com/Gezine).** This is just a fork allowing you to replace the Pico with a rooted Android phone, acting as a keyboard AND a pro controller. It has been made in a couple of hours, it's pretty rough.
+> **[CivSwitch](https://github.com/Gezine/CivSwitch) is an exploit by [Gezine](https://github.com/Gezine) :heart:.** This is just a fork allowing you to replace the Pico with a rooted Android phone, acting as a keyboard AND a pro controller. It has been made in a couple of hours, it's pretty rough.
 
-[▶ It looks like this](assets/rooted-android-civswitch.mp4)
+[It looks like this](assets/rooted-android-civswitch.mp4)
 
 ## What you need
 
@@ -73,7 +73,7 @@ Once you're good with the test, reconnect your Joy-Con controllers when prompted
 sh run.sh
 ```
 
-The controller should reconnect and start typing the payload. Leave the game and phone running until the command finishes. The default payload types **87 lines** and takes roughly **15 minutes** :3.
+The controller should reconnect and start typing the payload. Leave the game and phone running until the command finishes. The default payload types **87 lines** and takes roughly **15 minutes** :slightly_smiling_face:.
 
 > [!IMPORTANT]
 > **You will be asked to reconnect your Joy-Con controllers when the Switch asks at the end.** Confirm the controller prompt so the game can resume and the exploit can finish.
@@ -87,10 +87,8 @@ python3 installer-creator/install.py <console-ip> # without the port
 
 Replace `<console-ip>` with the address shown on the Switch, without `:9026`. The `npm` command installs the installer's dependencies and only needs to be run once.
 
-This will install the persistent loader in the save files of the game. **It replaces the game's single-player saves.** Keep the game open until the installer prints **`INSTALL DONE`**. You can then directly run the exploit without all this bullshit by restarting the game and selecting **Load Game**. HF ! <3
+This will install the persistent loader in the save files of the game. **It replaces the game's single-player saves.** Keep the game open until the installer prints **`INSTALL DONE`**. You can then directly run the exploit without all this bullshit by restarting the game and selecting **Load Game**. HF ! :heart: :tada:
 
 ## Credits
 
 - Original [CivSwitch](https://github.com/Gezine/CivSwitch) by [Gezine](https://github.com/Gezine).
-- JS exploit core based on [Netflix-N-Hack](https://github.com/NetflixNHack/Netflix-N-Hack) and the [ufm42 fork](https://github.com/ufm42/Netflix-N-Hack).
-- PicoSwitch firmware based on [Pico-Switch-Controller](https://github.com/Element2424/Pico-Switch-Controller) by [Element2424](https://github.com/Element2424).
