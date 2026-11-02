@@ -1,75 +1,116 @@
-# CivSwitch
+# CivSwitch — Android Edition
 
-XSS toolchain for the Switch 1 edition of Civilization 7.  
-Only the **1.0.0** version of the game in physical cartridge is supported.  
+> [!IMPORTANT]
+> **[CivSwitch](https://github.com/Gezine/CivSwitch) is an exploit by [Gezine](https://github.com/Gezine).** This repository adapts the input procedure to rooted Android phones.
 
-Every switch 1/2 firmware 20.x.x and up to current version (23.0.1) should work.  
+Use a rooted Android phone to type the CivSwitch payload into Civilization VII on your Switch. The phone acts as a controller and keyboard; no Raspberry Pi Pico is needed.
 
-Tested at Switch 1 fw 22.5.0, Switch 2 fw 20.4.0 and 23.0.1  
+## What you need
 
-Two components:
+- A docked Switch or Switch 2 and the **physical Switch 1 edition of Civilization VII, version 1.0.0**. Check the [upstream project](https://github.com/Gezine/CivSwitch#readme) for console firmware compatibility.
+- A rooted Android phone with [Termux](https://github.com/termux/termux-app/releases). Compatibility with other phones depends on their USB support.
+- A USB data cable to connect the phone to the PC and the Switch dock.
+- A PC with **ADB**, **Node.js**, **npm** and a **Bash terminal**. The optional PC tools below also need **Python 3**. On Windows, you can use WSL with USB access configured.
 
-- **PicoSwitch** — clean, compilable Pico firmware (RP2040 + RP2350) that types a chat-XSS payload into the Switch (USB HID macro).
+The full procedure, including the persistent installer, has been confirmed on a **Xiaomi Redmi 10 (`eos`)**, running **Android 11 / MIUI 12.5.26.0.RKUEUXM**, rooted with **[Magisk 31.1](https://github.com/topjohnwu/Magisk/releases/tag/v31.1)**.
 
-  Default payload = the Remote JS Loader bootstrap (exploit core + TCP loader).
+## One-time setup
 
-  Ships with `compress.js` (chat transport: terser -> deflateRaw -> base-25 chunked `img/onerror` lines with censor armor).
-- **installer-creator** — given any JavaScript payload, produces the boot-persistent installer (`XSTRIG.Civ7Save` trigger written to savedata) to send through the Remote JS Loader.
+### 1. Prepare the phone
 
-## Layout
+Install and open Termux, then run this command **in Termux, before entering `su`**:
 
-`core.js` at the root is the shared payload both components build from, and `send_js.py` at the root sends any payload to a running loader.
-
-## Workflow
-
-[Video Tutorial](https://www.reddit.com/r/switch2hacks/comments/1xll4wf/civswitch_hack_start_to_finish/) from switch2hacks reddit
-
-1. **Build + flash** the loader UF2 (see PicoSwitch/README.md).
-
-   On the Switch, go to "System" menu and change system language to English(US).  
-   Go to "Controllers & Accessories" menu and change USB Keyboard to English(US).  
-   
-   These are required to type "English" letters (code) using USB keyboard.  
-   (Higher fw might not need to change system language as they support typing english without language change)  
-   
-   NOTE for JP-only Switch2 : 
-   1. If you have another Switch, you can connect the two consoles via local wireless multiplayer and plug the Pico on the other device, allowing it to send the payload over the network.  
-   2. If you're on a higher fw version (I'm not sure exact version), you can simply try plugging the Pico and see if it can type English text without changing the system language.  
-   
-   Connect to Internet using [90DNS](https://gitlab.com/a/90dns) to block Nintendo servers.  
-   
-   Then launch game and navigate main menu -> MULTIPLAYER -> WIRELESS -> CREATE GAME -> HOST LOBBY -> CHAT then plug the Pico in (in docked mode, focus the chat box first to receive Pico input).  
-
-   The Pico types the chat XSS (~87 lines, ~15 min); the Remote JS Loader comes up on the console (TCP :9026) for that session.  
-2. **Install the persistent boot trigger** from the PC: `python installer-creator/install.py <console-ip>` — uploads the save template, splices the compressed payload into it on-console, wipes `save:/saves/Single/`, and writes the trigger.
-3. From then on, every boot: main menu -> Load Game -> the payload runs from savedata (and if the payload is the loader, :9026 is up at boot — and survives console sleep/wake).  
-4. You can revert system language after installer finished.  
-
-## Sending payloads (`send_js.py`)
-
-```
-python send_js.py <console-ip> [port] file.js
+```sh
+pkg install python
 ```
 
-Sends a JS file as-is to the Remote JS Loader (default port 9026), then prints the log output the console streams back (read until close or timeout).  
+Enable **USB debugging** in Android's Developer options. Connect the phone to the PC and accept the USB debugging authorization. Grant root access when prompted during deployment and when using `su` in Termux.
 
-## Build (Pico firmware)
+### 2. Deploy
 
-On Ubuntu 24.04:
+From this repository on the PC:
 
+```bash
+bash deploy.sh
 ```
-sudo apt install -y git build-essential cmake ninja-build gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib python3 nodejs npm
-git clone --branch 2.3.1 --depth 1 --recurse-submodules --shallow-submodules https://github.com/raspberrypi/pico-sdk.git ~/pico-sdk
-export PICO_SDK_PATH=$HOME/pico-sdk
-cd PicoSwitch
-npm install                    # terser for compress.js
-node compress.js               # reads ../core.js -> payload.txt
-cmake --preset pico2 && cmake --build --preset pico2    # RP2350 -> build-pico2/src/civ7-pico2.uf2
-cmake --preset pico1 && cmake --build --preset pico1    # RP2040 -> build-pico1/src/civ7-pico1.uf2
+
+This generates the payload, copies everything to the phone and creates shortcuts in Termux. Run it again whenever you update the project. You do not need to build or flash Pico firmware.
+
+Once deployment finishes, unplug the phone from the PC. The remaining steps run from Termux.
+
+## Use it on the Switch
+
+### 1. Open the chat
+
+On the Switch:
+
+1. Set the console's **system language** to **English (US)**.
+2. Set the **USB keyboard layout** to **English (US)** as well. Both settings are part of the [original Gezine instructions](https://github.com/Gezine/CivSwitch#workflow).
+3. Set up [90DNS](https://gitlab.com/a/90dns) before connecting to the internet.
+4. Launch Civilization VII and open **MULTIPLAYER → WIRELESS → CREATE GAME → HOST LOBBY → CHAT**. Select the chat input field.
+
+### 2. Check the connection
+
+Keep the phone unplugged. In Termux, run:
+
+```sh
+su
+setenforce 0
+sh ~/test.sh
 ```
+
+When prompted, connect the phone to a USB-A port on the Switch dock. Two test messages should appear in the chat. Wait for the command to finish before continuing.
+
+Repeat `su` in a new Termux session and `setenforce 0` after restarting the phone.
+
+### 3. Run the full procedure
+
+Keep your **Joy-Con controllers ready** for the end of the procedure. Return to the chat input field, unplug the phone, and run **in the same root Termux session**:
+
+```sh
+sh ~/run.sh
+```
+
+Connect the phone to the dock when prompted, then leave the game and phone running until the command finishes. The default payload types **87 lines** and takes roughly **15 minutes**; the line count can change with payload updates.
+
+> [!IMPORTANT]
+> **Reconnect your Joy-Con controllers as soon as all lines have been sent and `run.sh` finishes** (`87/87` with the current default payload). The phone stops acting as a controller at this point, so the Switch can display a controller reconnection prompt. Reconnect the Joy-Con controllers and confirm the prompt so the game can resume and the exploit can finish.
+
+Keep the game open and wait until the console displays **`Awaiting payload at <console-ip>:9026`**. The **Remote JS Loader** is then ready. Use that IP address, without `:9026`, in the PC commands below.
+
+Both `test.sh` and `run.sh` prepare the phone automatically and restore its normal USB connection when they finish, on Ctrl+C, or on an error. Run only one command at a time.
+
+## After the loader starts
+
+You can send a JavaScript file from a PC on the same network:
+
+```bash
+python3 send_js.py <console-ip> payloads/helloworld.js
+```
+
+For an optional persistent trigger, follow the [installer guide](installer-creator/README.md), including its `npm install` step. This requires Python 3 on the PC and replaces the game's single-player save files.
+
+## If something goes wrong
+
+| Problem | What to do |
+|---------|------------|
+| The PC cannot see the phone | Check USB debugging, authorization and the data cable. With WSL, reattach the phone through USBIP after a USB mode change if necessary. |
+| `Python not found` | Open Termux and run `pkg install python` outside the root shell. |
+| `Permission denied` or a root error | Run `su`, allow root access, then run `setenforce 0`. |
+| No controller or keyboard response | Start with the cable unplugged, run `sh ~/test.sh`, then connect to the dock. Check the chat input field and English (US) keyboard layout. |
+| All lines were sent, but the loader has not appeared | Reconnect the Joy-Con controllers and confirm any controller reconnection prompt so the game can resume. Keep the game open and wait for `Awaiting payload at ...:9026`. |
+| Normal USB does not return | Stop the active command with Ctrl+C, then run `sh ~/teardown.sh` as root. If necessary, restart the phone. |
+
+For more detail when reporting a problem, repeat the test with:
+
+```sh
+sh ~/test.sh --usb-trace
+```
+
+`--usb-trace` is optional.
 
 ## Credits
 
-- The JS exploit core in `core.js` referenced [inject.js](https://github.com/NetflixNHack/Netflix-N-Hack/blob/main/inject.js) from [Netflix-N-Hack](https://github.com/NetflixNHack/Netflix-N-Hack) and its fork by [ufm42](https://github.com/ufm42/Netflix-N-Hack/blob/main/inject.js) 
-- The PicoSwitch firmware is based on [Pico-Switch-Controller](https://github.com/Element2424/Pico-Switch-Controller) by [Element2424](https://github.com/Element2424)
-
+- Original [CivSwitch](https://github.com/Gezine/CivSwitch) by [Gezine](https://github.com/Gezine).
+- JS exploit core based on [Netflix-N-Hack](https://github.com/NetflixNHack/Netflix-N-Hack) and the [ufm42 fork](https://github.com/ufm42/Netflix-N-Hack).
+- PicoSwitch firmware based on [Pico-Switch-Controller](https://github.com/Element2424/Pico-Switch-Controller) by [Element2424](https://github.com/Element2424).

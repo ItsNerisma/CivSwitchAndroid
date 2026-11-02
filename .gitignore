@@ -1,0 +1,27 @@
+# Generated payload (rebuilt by deploy.sh)
+payload.txt
+
+# Dependencies and Python caches
+node_modules/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Local editor settings
+.vscode/
+.idea/
+.DS_Store
+
+# Pico build output
+build/
+build-*/
+/PicoSwitch/include/macro_script.h
+*.uf2
+*.elf
+*.o
+
+# USB session state and diagnostic logs
+.gadget_backup.json
+.gadget_backup.tmp
+.session.lock
+*.log
