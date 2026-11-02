@@ -58,7 +58,7 @@ Keep the phone unplugged. In Termux, run:
 
 ```sh
 su
-setenforce 0
+setenforce 0 # Temporarily relax SELinux restrictions to allow USB controller emulation
 sh test.sh
 ```
 
