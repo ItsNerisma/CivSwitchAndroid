@@ -3,7 +3,8 @@
 > [!IMPORTANT]
 > **[CivSwitch](https://github.com/Gezine/CivSwitch) is an exploit by [Gezine](https://github.com/Gezine) :heart:.** This is just a fork allowing you to replace the Pico with a rooted Android phone, acting as a keyboard AND a pro controller. It has been made in a couple of hours, it's pretty rough.
 
-[It looks like this](https://github.com/ItsNerisma/CivSwitch/raw/refs/heads/main/assets/rooted-android-civswitch.mp4)
+Very odd footage of the thing in action: https://github.com/user-attachments/assets/123a8bc9-2460-47cd-8f14-cf64a20445d4
+
 
 ## What you need
 
