@@ -11,7 +11,7 @@ Very odd footage of the thing in action: https://github.com/user-attachments/ass
 - A docked Switch 2 and the **physical Switch 1 edition of Civilization VII, version 1.0.0**. Check the [upstream project](https://github.com/Gezine/CivSwitch#readme) for console firmware compatibility. I only tested on Switch 2 **23.0.1**.
 - A rooted Android phone with [Termux](https://github.com/termux/termux-app/releases). Compatibility with other phones depends on their USB support.
 - A USB data cable to connect the phone to the PC and the Switch dock.
-- A PC with **[ADB](https://developer.android.com/tools/releases/platform-tools)**, **[Node.js](https://nodejs.org/en/download)**, **npm** and a **Bash terminal**. The persistent installer below also needs **[Python 3](https://www.python.org/downloads/)**. On Windows, you can use WSL with USB access configured: see [Microsoft's USB setup guide](https://learn.microsoft.com/en-us/windows/wsl/connect-usb).
+- A PC with **[ADB](https://developer.android.com/tools/releases/platform-tools)**, **[Node.js](https://nodejs.org/en/download)** and **npm**. The persistent installer below also needs **[Python 3](https://www.python.org/downloads/)**. On Windows, you can deploy from PowerShell. To deploy from WSL instead, first attach the phone to WSL 2 with **[usbipd-win](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)**; while attached, the phone is unavailable to Windows.
 
 The full procedure, including the persistent installer, has been tested on a **Xiaomi Redmi 10 (`eos`)**, running **Android 11 / MIUI 12.5.26.0.RKUEUXM**, rooted with **[Magisk 31.1](https://github.com/topjohnwu/Magisk/releases/tag/v31.1)**.
 
@@ -33,10 +33,14 @@ Enable **USB debugging** in Android's Developer options. Connect the phone to th
 
 ### 2. Deploy
 
-Once the phone is connected, open a Bash terminal in this repository's root folder on the PC and run:
+Once the phone is connected, open a terminal in this repository's root folder on the PC and run the command for your shell:
 
-```bash
+```sh
+# Bash (Linux, macOS, or WSL)
 bash deploy.sh
+
+# PowerShell (Windows)
+powershell -ExecutionPolicy Bypass -File .\deploy.ps1
 ```
 
 This generates the payload, copies everything to the phone and creates shortcuts in Termux. Run it again whenever you update the project.

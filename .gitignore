@@ -25,3 +25,6 @@ build-*/
 .gadget_backup.tmp
 .session.lock
 *.log
+
+# Tests
+scratchpad/
