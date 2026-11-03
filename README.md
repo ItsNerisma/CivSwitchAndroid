@@ -55,7 +55,7 @@ On the Switch:
 1. Set the console's **system language** to **English (US)**.
 2. Set the **USB keyboard layout** to **English (US)** as well. Both settings are part of the [original Gezine instructions](https://github.com/Gezine/CivSwitch#workflow).
 3. Set up [90DNS](https://gitlab.com/a/90dns) before connecting to the internet.
-4. Launch Civilization VII and open **MULTIPLAYER → WIRELESS → CREATE GAME → HOST LOBBY → CHAT**. Select the chat input field (click the right stick).
+4. Launch Civilization VII and open **MULTIPLAYER → WIRELESS → CREATE GAME → HOST LOBBY → CHAT**. Select the chat input field (click the right stick). DO NOT OPEN THE KEYBOARD, just focus the chat view with the right stick by clicking.
 
 ### 2. Check the connection
 
