@@ -10,8 +10,8 @@ Very odd footage of the thing in action: https://github.com/user-attachments/ass
 
 - A docked Switch 2 and the **physical Switch 1 edition of Civilization VII, version 1.0.0**. Check the [upstream project](https://github.com/Gezine/CivSwitch#readme) for console firmware compatibility. I only tested on Switch 2 **23.0.1**.
 - A rooted Android phone with [Termux](https://github.com/termux/termux-app/releases). Compatibility with other phones depends on their USB support.
-- A USB data cable to connect the phone to the PC and the Switch dock.
-- A PC with **[ADB](https://developer.android.com/tools/releases/platform-tools)**, **[Node.js](https://nodejs.org/en/download)** and **npm**. The persistent installer below also needs **[Python 3](https://www.python.org/downloads/)**. On Windows, you can deploy from PowerShell. To deploy from WSL instead, first attach the phone to WSL 2 with **[usbipd-win](https://learn.microsoft.com/en-us/windows/wsl/connect-usb)**; while attached, the phone is unavailable to Windows.
+- A USB data cable to connect the phone to the Switch dock.
+- Either a PC with **[ADB](https://developer.android.com/tools/releases/platform-tools)**, **[Node.js](https://nodejs.org/en/download)** and npm, or Node.js, npm and Git installed in Termux to build and deploy directly from the phone. The persistent installer also needs Python 3; it can run from the PC or from Termux.
 
 The full procedure, including the persistent installer, has been tested on a **Xiaomi Redmi 10 (`eos`)**, running **Android 11 / MIUI 12.5.26.0.RKUEUXM**, rooted with **[Magisk 31.1](https://github.com/topjohnwu/Magisk/releases/tag/v31.1)**.
 
@@ -21,19 +21,64 @@ The full procedure, including the persistent installer, has been tested on a **X
 
 On the phone, download Termux from the **[official GitHub releases page](https://github.com/termux/termux-app/releases)**. Open a release's **Assets** and download the APK ending in **`_universal.apk`**, then install it and open Termux.
 
-Install Python **before running `su`**, in the normal Termux shell:
+Install the tools in the normal Termux shell, before running `su`:
 
 ```sh
-pkg install python
+pkg install git nodejs npm python
 ```
 
 If you already entered a root shell, run `exit` first: Termux's package manager must run without root.
 
-Enable **USB debugging** in Android's Developer options. Connect the phone to the PC and accept the USB debugging authorization on the phone. Grant root access to **Termux** and **Shell (ADB)** in your root manager (in Magisk, use the **Superuser** tab).
+Grant root access to **Termux** in your root manager (in Magisk, use the **Superuser** tab). Enable **USB debugging** and grant root access to **Shell (ADB)** only if you plan to deploy from a PC.
 
-### 2. Deploy
+### 2. Build and deploy
 
-Once the phone is connected, open a terminal in this repository's root folder on the PC and run the command for your shell:
+Choose one of these deployment methods. Both build the payload from the current source before installing the scripts.
+
+#### From the phone with Termux
+
+In Termux, use the normal (non-root) shell to clone the repository:
+
+```sh
+cd ~
+git clone https://github.com/ItsNerisma/CivSwitchNoPico.git
+cd CivSwitchNoPico
+```
+
+Install the Termux `sudo` wrapper and run the on-device deployment script:
+
+```sh
+bash patchsudo.sh
+sudo bash deployandr.sh
+```
+
+`deployandr.sh` builds `PicoSwitch/payload.txt`, copies the runtime files to `/data/local/tmp/civswitch`, and creates the Termux shortcuts. Run these commands again after pulling project updates to rebuild and redeploy.
+
+You can also do those steps manually without installing the `sudo` wrapper. From the repository root, build the payload in the normal Termux shell:
+
+```sh
+cd PicoSwitch && npm install --silent && node compress.js
+cd ..
+```
+
+Then stage the scripts and generated payload where `test.sh` and `run.sh` expect them, and create the same shortcuts as the deployment script:
+
+```sh
+su
+setenforce 0
+mkdir -p /data/local/tmp/civswitch
+cp AndroidSwitch/*.sh AndroidSwitch/*.py /data/local/tmp/civswitch/
+cp PicoSwitch/payload.txt /data/local/tmp/civswitch/payload.txt
+ln -sf /data/local/tmp/civswitch/test.sh /data/data/com.termux/files/home/test.sh
+ln -sf /data/local/tmp/civswitch/run.sh /data/data/com.termux/files/home/run.sh
+ln -sf /data/local/tmp/civswitch/teardown.sh /data/data/com.termux/files/home/teardown.sh
+```
+
+You can now continue with the test and run steps below. The deployment script automates this build, copy and shortcut setup.
+
+#### From a PC with ADB
+
+Connect the phone, accept the USB debugging authorization, then open a terminal in this repository's root folder on the PC and run the command for your shell:
 
 ```sh
 # Bash (Linux, macOS, or WSL)
@@ -44,7 +89,8 @@ powershell -ExecutionPolicy Bypass -File .\deploy.ps1
 ```
 
 This generates the payload, copies everything to the phone and creates shortcuts in Termux. Run it again whenever you update the project.
-Once deployment finishes, unplug the phone from the PC. **The remaining steps run from Termux directly on the phone.**
+
+After either method finishes, continue in Termux on the phone. The deployment step is needed because the `test.sh` and `run.sh` shortcuts use the installed files in `/data/local/tmp/civswitch`; they are not standalone when run directly from the Git checkout.
 
 ## Use it on the Switch
 
@@ -83,14 +129,14 @@ The controller should reconnect and start typing the payload. Leave the game and
 > [!IMPORTANT]
 > **You will be asked to reconnect your Joy-Con controllers when the Switch asks at the end.** Confirm the controller prompt so the game can resume and the exploit can finish.
 
-Now, just wait until the console displays **`Awaiting payload at <console-ip>:9026`**. The **Remote JS Loader** is then ready. That means you can now run these commands from the repository's root folder on **your PC on the same local network**:
+Now, just wait until the console displays **`Awaiting payload at <console-ip>:9026`**. The **Remote JS Loader** is then ready. Run the persistent installer from the repository's root folder on a PC on the same local network, or from the cloned repository in Termux on the phone:
 
 ```sh
 npm --prefix installer-creator install
 python3 installer-creator/install.py <console-ip> # without the port
 ```
 
-Replace `<console-ip>` with the address shown on the Switch, without `:9026`. The `npm` command installs the installer's dependencies and only needs to be run once.
+Replace `<console-ip>` with the address shown on the Switch, without `:9026`. The `npm` command installs the installer's dependencies and only needs to be run once per clone.
 
 This will install the persistent loader in the save files of the game. **It replaces the game's single-player saves.** Keep the game open until the installer prints **`INSTALL DONE`**. You can then directly run the exploit without all this bullshit by restarting the game and selecting **Load Game**. HF ! :heart: :tada:
 
