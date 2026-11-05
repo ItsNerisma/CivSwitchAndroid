@@ -2,7 +2,7 @@
 # Build the payload and set everything up from the phone.
 #port of this script by Kris The Dog
 # Usage: ./deployandr.sh
-
+echo "make sure to run ./patchsudo first"
 set -euo pipefail
 
 DEST=/data/local/tmp/civswitch
