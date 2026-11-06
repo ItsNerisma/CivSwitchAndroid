@@ -10,7 +10,6 @@ Very odd footage of the thing in action: https://github.com/user-attachments/ass
 - A docked Switch 2 and the **physical Switch 1 edition of Civilization VII, version 1.0.0**. Check the [upstream project](https://github.com/Gezine/CivSwitch#readme) for console firmware compatibility. I only tested on Switch 2 **23.0.1**.
 - A rooted Android phone with [Termux](https://github.com/termux/termux-app/releases), **Node.js 18+**, npm and Python 3. Compatibility with other phones depends on their USB support (ConfigFS and FunctionFS).
 - A USB data cable to connect the phone to the Switch dock.
-- A PC is optional. You can copy the project to the phone with a regular file transfer, or clone it directly in Termux. No ADB needed :D
 
 The procedure, including the persistent installer, was tested on a **Xiaomi Redmi 10 (`eos`)**, running **Android 11 / MIUI 12.5.26.0.RKUEUXM**, rooted with **[Magisk 31.1](https://github.com/topjohnwu/Magisk/releases/tag/v31.1)**.
 
@@ -20,14 +19,16 @@ The procedure, including the persistent installer, was tested on a **Xiaomi Redm
 
 On the phone, download Termux from the **[official GitHub releases page](https://github.com/termux/termux-app/releases)**. Open a release's **Assets** and download the APK ending in **`_universal.apk`**, then install it and open Termux.
 
-Install the tools in the normal Termux shell:
+Install the tools in a fresh Termux shell:
 
 ```sh
 pkg update
 pkg install git nodejs npm python
 ```
 
-If you already entered a root shell, run `exit` first: Termux's package manager must run without root. Grant root access to **Termux** in your root manager (in Magisk, use the **Superuser** tab).
+If you already entered a root shell, run `exit` first: Termux's package manager must run without root. 
+
+>[!NOTE] Even tho you must not be root to install the pkgs, you'll **need Termux to be granted root access** by your root helper for later commands (in Magisk, use the **Superuser** tab, find Termux and tick its checkbox).
 
 ### 2. Get the project
 
@@ -36,32 +37,10 @@ Choose whichever method you prefer. Keep the working folder in Termux's home dir
 #### Clone directly on the phone
 
 ```sh
-cd ~
+cd ~ # on a fresh termux shell you should already be there
 git clone https://github.com/ItsNerisma/CivSwitchAndroid.git
 cd CivSwitchAndroid
 ```
-
-#### Or transfer from a PC
-
-Clone or download this repository on the PC, then transfer the folder to the phone however you like. **Do not copy `node_modules` from the PC**: install the dependencies on the phone.
-
-Put the `CivSwitchAndroid` folder at the **root of the phone's internal storage**, as shown on the PC over USB (next to `DCIM`, for example).
-
-If Termux does not have storage access yet, run this once and accept the permission prompt:
-
-```sh
-termux-setup-storage
-```
-
-Then move the project into Termux's home directory:
-
-```sh
-# /sdcard is the phone's internal storage shown at the root over USB.
-mv /sdcard/CivSwitchAndroid ~/
-cd ~/CivSwitchAndroid
-```
-
-The project then lives in Termux's home so npm can install its dependencies normally.
 
 ### 3. Install once
 
@@ -84,17 +63,17 @@ On the Switch:
 3. Set up [90DNS](https://gitlab.com/a/90dns) before connecting to the internet.
 4. Launch Civilization VII and open **MULTIPLAYER → WIRELESS → CREATE GAME (R stick press) → HOST LOBBY (+ button press) → CHAT (R stick press)**.
 
-DO NOT OPEN THE KEYBOARD, just focus the chat view with the right stick by clicking.
+**DO NOT OPEN THE KEYBOARD**, just focus the chat view with the right stick by clicking.
 
 ### 2. Test the thing
 
-Keep the phone unplugged. From the project folder in the normal Termux shell, run:
+Keep the phone unplugged. From the project folder in a non root Termux shell, run:
 
 ```sh
-npm run test
+npm run test 
 ```
 
-Allow root access if prompted. The script saves the initial SELinux state, runs `setenforce 0` if needed, and prepares the USB controller.
+The script saves the initial SELinux state, runs `setenforce 0` if needed, and prepares the USB controller.
 
 **When prompted**, connect the phone to a USB-A port on the Switch dock.
 It should write two test messages in Civ's chat. Wait for the command to finish. At the end it will disconnect the emulated controller from the Switch, it's normal. Android USB and the initial SELinux state are restored automatically.
