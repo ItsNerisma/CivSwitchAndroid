@@ -2,20 +2,26 @@
 """Own the Android USB gadget and HID transport for the entire session."""
 
 import argparse
+from contextlib import contextmanager
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import signal
 import subprocess
 import sys
+import threading
 import time
 
 from functionfs import FunctionFSHID
-from macro_player import play_payload
+from macro_player import ASCII_TO_KEY, play_payload
 
 BASE = Path(__file__).resolve().parent
-BACKUP = BASE / '.gadget_backup.json'
+STATE = Path('/data/local/tmp/civswitch-state')
+BACKUP = STATE / 'usb.json'
+SESSION = STATE / 'session.json'
+SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
 DEVICE = {
     'bcdUSB': '0x0200', 'bcdDevice': '0x0100',
     'bDeviceClass': '0', 'bDeviceSubClass': '0', 'bDeviceProtocol': '0',
@@ -84,6 +90,164 @@ def mounted(path):
                for line in Path('/proc/mounts').read_text().splitlines())
 
 
+def atomic_json(path, value):
+    temp = path.with_suffix('.tmp')
+    with open(temp, 'w', encoding='utf-8') as f:
+        os.chmod(temp, 0o600)
+        json.dump(value, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp, path)
+
+
+def boot_id():
+    return Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+
+
+def selinux_state():
+    state = subprocess.check_output(['getenforce'], text=True).strip()
+    if state not in ('Enforcing', 'Permissive', 'Disabled'):
+        raise RuntimeError(f'Unknown SELinux state: {state!r}')
+    return state
+
+
+def set_selinux(state):
+    current = selinux_state()
+    if current == state:
+        return
+    if state == 'Disabled' or current == 'Disabled':
+        raise RuntimeError(f'Cannot change SELinux from {current} to {state}.')
+    subprocess.run(['setenforce', '1' if state == 'Enforcing' else '0'], check=True)
+    if selinux_state() != state:
+        raise RuntimeError(f'SELinux did not switch to {state}.')
+    print(f'SELinux: {state}', flush=True)
+
+
+def make_permissive():
+    if selinux_state() != 'Disabled':
+        set_selinux('Permissive')
+
+
+def begin_session():
+    # Persist the original state before the first privileged change. This file
+    # also covers a failure in gadget discovery, before a USB backup exists.
+    atomic_json(SESSION, {'selinux': selinux_state(), 'boot_id': boot_id()})
+    make_permissive()
+
+
+@contextmanager
+def uninterrupted_cleanup():
+    # Repeated Ctrl+C must not interrupt restoration halfway through.
+    previous = {name: signal.signal(name, signal.SIG_IGN) for name in SIGNALS}
+    try:
+        yield
+    finally:
+        for name, handler in previous.items():
+            signal.signal(name, handler)
+
+
+def restore_session():
+    if not SESSION.exists():
+        if BACKUP.exists():
+            raise RuntimeError('USB backup has no SELinux journal; keeping it for recovery.')
+        return
+    try:
+        saved = json.loads(SESSION.read_text())
+    except ValueError as exc:
+        raise RuntimeError('Invalid session journal; keeping it for recovery.') from exc
+    if (not isinstance(saved, dict)
+            or saved.get('selinux') not in ('Enforcing', 'Permissive', 'Disabled')
+            or not isinstance(saved.get('boot_id'), str)):
+        raise RuntimeError('Invalid session journal; keeping it for recovery.')
+    if saved['boot_id'] != boot_id():
+        # Reboot resets USB and SELinux. Never replay a snapshot from a previous boot.
+        BACKUP.unlink(missing_ok=True)
+        SESSION.unlink()
+        print('Discarded session state from a previous boot.', flush=True)
+        return
+    errors = []
+    try:
+        if BACKUP.exists():
+            make_permissive()
+            snapshot = json.loads(BACKUP.read_text())
+            Gadget(path=snapshot['gadget'], backup=BACKUP).restore()
+    except Exception as exc:
+        errors.append(f'USB: {exc}')
+    finally:
+        try:
+            set_selinux(saved['selinux'])
+        except Exception as exc:
+            errors.append(f'SELinux: {exc}')
+    if errors:
+        raise RuntimeError('Restoration failed; run npm run teardown. ' + '; '.join(errors))
+    SESSION.unlink()
+
+
+def finish_session(gadget, hid):
+    errors = []
+    # Unbinding cancels endpoint requests before AIO buffers are freed. Every
+    # cleanup step is attempted even if a previous step failed.
+    actions = []
+    if hid is not None:
+        actions.append(hid.stop)
+    if gadget is not None and gadget.snapshot is not None:
+        actions.append(gadget.unbind)
+    if hid is not None:
+        actions.append(hid.close)
+    actions.append(restore_session)
+    for action in actions:
+        try:
+            action()
+        except Exception as exc:
+            errors.append(str(exc))
+    if errors:
+        raise RuntimeError('Session cleanup failed: ' + '; '.join(errors))
+
+
+def watch_launcher(stream):
+    disconnected = threading.Event()
+
+    def watch():
+        try:
+            # After the initial request, the pipe stays open until cancellation.
+            # Raw reads avoid holding stdin's buffered lock during interpreter
+            # shutdown while this daemon thread is still waiting for EOF.
+            os.read(stream.fileno(), 1)
+        finally:
+            disconnected.set()
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    threading.Thread(target=watch, daemon=True).start()
+    return disconnected
+
+
+def read_request(stream, mode):
+    try:
+        request = json.loads(stream.readline())
+    except (ValueError, OSError) as exc:
+        raise RuntimeError('Missing or invalid launcher request. Use npm start or npm run test.') from exc
+    if not isinstance(request, dict):
+        raise RuntimeError('Launcher request must be an object.')
+    if mode != 'run':
+        return None
+    lines = request.get('lines')
+    if not isinstance(lines, list) or not lines:
+        raise RuntimeError('Payload is empty or invalid.')
+    for index, line in enumerate(lines, 1):
+        if not isinstance(line, str) or not line.strip():
+            raise RuntimeError(f'Payload line {index} is empty or invalid.')
+        if len(line) + 1 > 254 or any(ch not in ASCII_TO_KEY for ch in line):
+            raise RuntimeError(f'Payload line {index} exceeds the chat limit or contains unsupported characters.')
+    return lines
+
+
+def ensure_state_directory():
+    STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if STATE.is_symlink() or STATE.stat().st_uid != 0:
+        raise RuntimeError(f'{STATE} must be a real directory owned by root.')
+    STATE.chmod(0o700)
+
+
 class Gadget:
     def __init__(self, path=None, backup=BACKUP):
         self.path = Path(path) if path else find_gadget()
@@ -117,11 +281,7 @@ class Gadget:
 
     def save(self):
         if self.backup.exists():
-            print('WARNING: Stale backup found. Restoring first...', flush=True)
-            # A failed restoration must keep the only copy of Android's state.
-            self.restore()
-            self.path = find_gadget()
-            self.config = self.configuration()
+            raise RuntimeError('A USB backup already exists; recover it with npm run teardown.')
         function = self.path / 'functions' / FUNCTION
         if function.exists() or mounted(self.mountpoint):
             raise RuntimeError('An existing CivSwitch FunctionFS instance has no backup. '
@@ -147,13 +307,7 @@ class Gadget:
             'musb_speed': musb_speed_saved,
         }
         # Publish only a complete backup; never overwrite a previous session.
-        temp = self.backup.with_suffix('.tmp')
-        with open(temp, 'w', encoding='utf-8') as f:
-            os.chmod(temp, 0o600)
-            json.dump(snapshot, f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(temp, self.backup)
+        atomic_json(self.backup, snapshot)
         self.snapshot = snapshot
 
     def prepare(self):
@@ -298,71 +452,77 @@ def stop_session(*_):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('mode', choices=('test', 'run', 'teardown'))
-    parser.add_argument('payload', nargs='?', default=str(BASE / 'payload.txt'))
     parser.add_argument('--start-delay', '--delay', type=float, default=2)
     parser.add_argument('--connect-timeout', type=float, default=90)
     parser.add_argument('--usb-trace', action='store_true', help='Log USB control requests.')
     args = parser.parse_args(argv)
     if os.geteuid() != 0:
-        parser.error('Run as root in Termux (su).')
-    if args.start_delay < 0 or args.connect_timeout <= 0:
-        parser.error('Delays must be nonnegative and connection timeout positive.')
-    lines = None
-    if args.mode == 'run':
-        lines = [line for line in Path(args.payload).read_text().splitlines() if line.strip()]
-        if not lines:
-            parser.error('Payload is empty.')
-    # One owner for configuration, reports and restoration.
-    with open(BASE / '.session.lock', 'a') as lock:
+        parser.error('Root access is required. Use npm start or npm run test in Termux.')
+    if (not math.isfinite(args.start_delay) or not math.isfinite(args.connect_timeout)
+            or args.start_delay < 0 or args.connect_timeout <= 0):
+        parser.error('Delays must be nonnegative and connection timeout positive and finite.')
+    lines = read_request(sys.stdin, args.mode)
+    ensure_state_directory()
+    # One lock for the phone, even when launched from different project copies.
+    with open(STATE / 'session.lock', 'a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError('Another CivSwitch session is running. Stop it first.')
-        signal.signal(signal.SIGTERM, stop_session)
-        if args.mode == 'teardown':
-            if BACKUP.exists():
-                Gadget(path=json.loads(BACKUP.read_text())['gadget']).restore()
-            else:
-                print('No USB session to restore.')
-            return
-        gadget = Gadget()
-        hid = None
+        previous = {name: signal.signal(name, stop_session) for name in SIGNALS}
         try:
-            print('Preparing Switch gamepad + keyboard...', flush=True)
-            gadget.prepare()
-            hid = FunctionFSHID(gadget.mountpoint, trace=args.usb_trace)
-            print('Plug the phone into the Switch dock. Starting continuous reports now.', flush=True)
-            gadget.bind()
-            wait_connected(gadget, hid, args.connect_timeout)
-            print(f'Starting {args.mode} in {args.start_delay:g}s; neutral reports remain active.', flush=True)
-            hid.sleep(args.start_delay)
-            play_payload(hid, lines if lines is not None else [
-                'gezine is a goat',
-                'Test OK! Run run.sh for the full payload',
-            ])
-            hid.sleep(.1)
-        except KeyboardInterrupt:
-            print('\nSession stopped.', flush=True)
-        finally:
-            # Unbinding cancels endpoint requests before their AIO context and
-            # buffers are freed. Closing a descriptor alone cannot cancel I/O.
+            disconnected = watch_launcher(sys.stdin)
+            with uninterrupted_cleanup():
+                restore_session()
+            if disconnected.is_set():
+                raise KeyboardInterrupt
+            if args.mode == 'teardown':
+                print('USB and SELinux recovery complete; no pending session.', flush=True)
+                return 0
+            for old in (BASE / '.gadget_backup.json',
+                        Path('/data/local/tmp/civswitch/.gadget_backup.json')):
+                if old.exists():
+                    raise RuntimeError(f'Old USB backup found at {old}. Restore it with the old '
+                                       'installation before updating, or reboot and remove the stale backup.')
+            gadget = None
+            hid = None
             try:
-                if hid is not None:
-                    hid.stop()
-                if gadget.snapshot is not None:
-                    gadget.unbind()
+                begin_session()
+                gadget = Gadget(backup=BACKUP)
+                print('Preparing Switch gamepad + keyboard...', flush=True)
+                gadget.prepare()
+                hid = FunctionFSHID(gadget.mountpoint, trace=args.usb_trace)
+                print('Plug the phone into the Switch dock. Starting continuous reports now.', flush=True)
+                gadget.bind()
+                wait_connected(gadget, hid, args.connect_timeout)
+                print(f'Starting {args.mode} in {args.start_delay:g}s; neutral reports remain active.', flush=True)
+                hid.sleep(args.start_delay)
+                play_payload(hid, lines if lines is not None else [
+                    'gezine is a goat',
+                    'Test OK! Run npm start for the full payload',
+                ])
+                hid.sleep(.1)
             finally:
-                try:
-                    if hid is not None:
-                        hid.close()
-                finally:
-                    if gadget.snapshot is not None:
-                        gadget.restore()
+                original_error = sys.exc_info()[1]
+                with uninterrupted_cleanup():
+                    try:
+                        finish_session(gadget, hid)
+                    except Exception as exc:
+                        if original_error is not None:
+                            raise RuntimeError(f'{original_error}; {exc}') from exc
+                        raise
+            return 0
+        except KeyboardInterrupt:
+            print('\nSession stopped; USB and SELinux restored.', flush=True)
+            return 130
+        finally:
+            for name, handler in previous.items():
+                signal.signal(name, handler)
 
 
 if __name__ == '__main__':
     try:
-        main()
+        sys.exit(main())
     except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f'ERROR: {exc}', file=sys.stderr)
         sys.exit(1)

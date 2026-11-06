@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// compress.js — pack ../core.js for the chunked img/onerror transport.
+// compress.js — pack source for the chunked img/onerror transport.
 // terser -> deflateRaw (no header/CRC) -> constrained base-25: the buffer
 // as one big integer (0x01 sentinel keeps leading zero bytes) over 25
 // chars: 23 punct (#%!()+,-.:;=>?@[]^_{|}~ — ! . ? are back; / is gone)
@@ -19,10 +19,8 @@
 // run() checks the joined base-25 payload for a raw star first (the char
 // is not in the alphabet, so one means censor tamper): on hit it shows
 // star@offset with 5 chars of context each side and never executes.
-// If nothing happens, probe.txt's line prints each stage's joined length
-// (want the two logged numbers) + star offsets.
-// usage: npm install terser && node compress.js
-const fs = require("fs"), zlib = require("zlib");
+// usage: require("./compress")(source) -> Promise<string[]>
+const zlib = require("zlib");
 const MAX = 254;
 const PUNCT = "#%!()+,-.:;=>?@[]^_{|}~";  // 23 punctuation chars (! . ? back; / out)
 const DIG = "01";                        // 2 digits — never two adjacent in output; no letters at all
@@ -98,8 +96,8 @@ return out;
 window.run=function(s){var i=s.indexOf("*");if(i>-1)document.body.innerHTML="<pre>star@"+i+":"+s.slice(Math.max(0,i-5),i+6);else eval(str(inflate(b25(s))))};
 `;
 
-(async () => {
-  const { code } = await require("terser").minify(fs.readFileSync("../core.js", "utf8"),
+async function compress(source) {
+  const { code } = await require("terser").minify(source,
     { compress: true, mangle: true, module: true });
   const raw = zlib.deflateRawSync(code, { level: 9 });
   // constrained base-25 encode: the buffer as one big integer, 0x01 sentinel
@@ -118,7 +116,7 @@ window.run=function(s){var i=s.indexOf("*");if(i>-1)document.body.innerHTML="<pr
     else { parts.push(DIG[digit - 23]); prevD = true; }
   }
   const data = parts.reverse().join("");
-  const armor = encodeURIComponent(DECODER_SRC.replace(/\n/g, "")).replace(/'/g, "%27").replace(/\*/g, "%2A").replace(/%2C/g, ",");;
+  const armor = encodeURIComponent(DECODER_SRC.replace(/\n/g, "")).replace(/'/g, "%27").replace(/\*/g, "%2A").replace(/%2C/g, ",");
 
   // chunk both stages into indexed slot lines over one total N
   let decChunks, dataChunks, N, w = 0;
@@ -157,8 +155,9 @@ window.run=function(s){var i=s.indexOf("*");if(i>-1)document.body.innerHTML="<pr
   ];
   const longest = Math.max(...lines.map(l => l.length + 1)); // +1 = newline
   if (longest > MAX) throw new Error(`payload line is ${longest}B > ${MAX}B`);
-  fs.writeFileSync("payload.txt", lines.map(l => l + "\n").join(""), "ascii");
-  
-  console.log(`minify ${code.length} -> b25 ${data.length} | armor ${armor.length}`);
-  console.log(`payload.txt: ${lines.length} lines (${A} decoder + ${B} payload + finale), longest ${longest}`);
-})();
+  console.error(`minify ${code.length} -> b25 ${data.length} | armor ${armor.length}`);
+  console.error(`${lines.length} lines (${A} decoder + ${B} payload + finale), longest ${longest}`);
+  return lines;
+}
+
+module.exports = compress;

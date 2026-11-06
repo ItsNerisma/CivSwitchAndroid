@@ -43,7 +43,7 @@ def hid_descriptor(index):
 
 
 def interface_descriptors(high_speed=False):
-    # Matches PicoSwitch's interfaces, HID 1.11 and 1 ms polling interval.
+    # Switch-compatible interfaces, HID 1.11 and 1 ms polling interval.
     # FunctionFS may remap endpoint addresses to suit the hardware controller.
     interval = 4 if high_speed else 1
     result = bytearray()
@@ -171,7 +171,7 @@ class FunctionFSHID:
 
     def _output(self, index, data):
         self._outputs[index] = data
-        # PicoSwitch echoes gamepad output reports; keyboard output is LEDs.
+        # Echo gamepad output reports; keyboard output is LEDs.
         if index == 0 and data:
             self._echo.append(data[:64])
 

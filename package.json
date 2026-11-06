@@ -1,0 +1,23 @@
+{
+  "name": "civswitch-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Send CivSwitch through a rooted Android phone acting as a keyboard and controller",
+  "type": "commonjs",
+  "scripts": {
+    "postinstall": "node run.js setup",
+    "setup": "node run.js setup",
+    "start": "node run.js run",
+    "test": "node run.js test",
+    "teardown": "node run.js teardown",
+    "persist": "node run.js persist",
+    "check": "node --test tests/*.test.js && python3 -m unittest discover -s tests -p 'test_*.py'"
+  },
+  "dependencies": {
+    "terser": "^5.51.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

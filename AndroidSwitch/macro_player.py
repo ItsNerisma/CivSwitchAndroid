@@ -3,7 +3,7 @@
 HID report helpers and macro sequence for civswitch.py.
 
 The session configures USB, starts neutral reports, plays the macro and restores
-Android USB. Run it through test.sh or run.sh.
+Android USB. Run it through npm run test or npm start.
 """
 
 import struct
@@ -36,13 +36,13 @@ HID_KEY_SLASH       = 0x38
 MOD_NONE   = 0x00
 MOD_LSHIFT = 0x02
 
-# Switch gamepad button masks (from SwitchConsts.h)
+# Switch USB gamepad button masks
 SWITCH_USB_MASK_A    = (1 << 2)
 SWITCH_USB_HAT_NOTHING = 0x08
 SWITCH_USB_JOYSTICK_MID = 0x80
 
 # ---------------------------------------------------------------------------
-# Timings — matching PicoSwitch/tools/payload_to_macro.py defaults
+# Timings — retain the values tested with the Android USB transport
 # ---------------------------------------------------------------------------
 KEY_HOLD_MS       = 32
 KEY_GAP_MS        = 32
@@ -110,11 +110,11 @@ def sleep_ms(ms):
 
 
 # ---------------------------------------------------------------------------
-# Macro playback — mirrors payload_to_macro.py / MacroEngine.cpp logic
+# Macro playback
 # ---------------------------------------------------------------------------
 
 def play_payload(hid, lines, keyboard_only=False):
-    """Play the full macro sequence for a payload.txt."""
+    """Play the full macro sequence for the supplied chat lines."""
 
     total_chars = sum(len(l) for l in lines)
     print(f"Playing {len(lines)} batch(es), {total_chars} chars total")
