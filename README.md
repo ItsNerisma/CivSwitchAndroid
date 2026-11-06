@@ -28,7 +28,8 @@ pkg install git nodejs npm python
 
 If you already entered a root shell, run `exit` first: Termux's package manager must run without root. 
 
->[!NOTE] Even tho you must not be root to install the pkgs, you'll **need Termux to be granted root access** by your root helper for later commands (in Magisk, use the **Superuser** tab, find Termux and tick its checkbox).
+>[!NOTE] 
+> Even tho you must not be root to install the pkgs, you'll **need Termux to be granted root access** by your root helper for later commands (in Magisk, use the **Superuser** tab, find Termux and tick its checkbox).
 
 ### 2. Get the project
 
