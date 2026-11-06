@@ -68,10 +68,13 @@ The project then lives in Termux's home so npm can install its dependencies norm
 From the project folder, still in the normal Termux shell:
 
 ```sh
-npm install
+./patchsudo.sh
+sudo npm install
 ```
 
-This installs the compression dependency. **Run `npm install` before `npm run test` or `npm run start`.** Termux will ask for root access when you launch the USB test or exploit, not during installation.
+This installs the compression dependency.
+You need to run this with sudo which is broken on termux so you need to patch it first.
+**Run `./patchsudo.sh` before `sudo npm install` before `npm run test` or `npm run start`.** Termux will ask for root access when you launch the USB test or exploit, not during installation.
 
 Node.js, npm and Python are needed **on the phone**, even if you transferred the project from a PC.
 
