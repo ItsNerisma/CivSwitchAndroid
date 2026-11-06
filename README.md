@@ -38,7 +38,6 @@ Choose whichever method you prefer. Keep the working folder in Termux's home dir
 #### Clone directly on the phone
 
 ```sh
-cd ~ # on a fresh termux shell you should already be there
 git clone https://github.com/ItsNerisma/CivSwitchAndroid.git
 cd CivSwitchAndroid
 ```
@@ -55,6 +54,10 @@ Node.js, npm and Python are needed **on the phone**, even if you transferred the
 
 ## Use it on the Switch
 
+### 1. Plug the phone to the Switch via USB
+
+I mean, yeah, plug it !
+
 ### 1. Open the chat
 
 On the Switch:
@@ -68,7 +71,7 @@ On the Switch:
 
 ### 2. Test the thing
 
-Keep the phone unplugged. From the project folder in a non root Termux shell, run:
+From the project folder in a non root Termux shell, run:
 
 ```sh
 npm run test 
@@ -76,7 +79,6 @@ npm run test
 
 The script saves the initial SELinux state, runs `setenforce 0` if needed, and prepares the USB controller.
 
-**When prompted**, connect the phone to a USB-A port on the Switch dock.
 It should write two test messages in Civ's chat. Wait for the command to finish. At the end it will disconnect the emulated controller from the Switch, it's normal. Android USB and the initial SELinux state are restored automatically.
 
 ### 3. Run the exploit
