@@ -3,7 +3,7 @@
 HID report helpers and macro sequence for civswitch.py.
 
 The session configures USB, starts neutral reports, plays the macro and restores
-Android USB. Run it through npm run test or npm start.
+Android USB. Run it through npm run test or npm run start.
 """
 
 import struct

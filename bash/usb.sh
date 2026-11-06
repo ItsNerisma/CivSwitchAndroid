@@ -5,11 +5,16 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 python="$1"
 shift
-export PATH="$(dirname -- "$python"):/system/bin:/system/xbin:$PATH"
+export PATH="$(dirname -- "$python"):/system/bin:/system/xbin:/sbin:$PATH"
 unset LD_PRELOAD
 
 if [[ "$EUID" == 0 ]]; then
     exec "$python" -u "$root/AndroidSwitch/civswitch.py" "$@"
+fi
+
+if ! command -v su >/dev/null 2>&1; then
+    echo "ERROR: su is unavailable. Root this phone and grant Termux root access." >&2
+    exit 1
 fi
 
 # su -c uses Android's shell: quote arguments as POSIX strings, including paths

@@ -56,7 +56,7 @@ function runCommand(command, args, request) {
 
 function help() {
   console.log(`Usage:
-  npm start                         Send the full payload through Android USB
+  npm run start                     Send the full payload through Android USB
   npm run test                      Type two test messages in Civ's chat
   npm run teardown                  Restore USB and SELinux after an interruption
   npm run persist -- <ip> [port] [payload.js]
@@ -71,10 +71,9 @@ async function main(args = process.argv.slice(2)) {
     help();
     return;
   }
-  if (mode === "setup") {
-    if (isTermux()) await runCommand("bash", [path.join(__dirname, "bash/setup.sh")]);
-    else console.log("[setup] Dependencies ready. USB commands run on rooted Android with Termux.");
-    return;
+  if (["run", "test", "persist"].includes(mode) &&
+      !fs.existsSync(path.join(__dirname, "node_modules/terser/package.json"))) {
+    throw new Error("Run npm install in this project folder first.");
   }
   if (mode === "persist") {
     if (!rest.length) throw new Error("Usage: npm run persist -- <console-ip> [port] [payload.js]");
@@ -84,7 +83,7 @@ async function main(args = process.argv.slice(2)) {
     return;
   }
   if (!["run", "test", "teardown"].includes(mode)) throw new Error(`Unknown command: ${mode}`);
-  if (!isTermux()) throw new Error("USB commands require a rooted Android phone with Termux. Use npm start -- --help for usage.");
+  if (!isTermux()) throw new Error("USB commands require a rooted Android phone with Termux. Use npm run start -- --help for usage.");
   const python = path.join(path.dirname(process.execPath), "python3");
   if (!fs.existsSync(python)) throw new Error("Python is missing. In Termux, run: pkg install python");
   const request = {};

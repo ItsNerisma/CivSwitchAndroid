@@ -225,7 +225,7 @@ def read_request(stream, mode):
     try:
         request = json.loads(stream.readline())
     except (ValueError, OSError) as exc:
-        raise RuntimeError('Missing or invalid launcher request. Use npm start or npm run test.') from exc
+        raise RuntimeError('Missing or invalid launcher request. Use npm run start or npm run test.') from exc
     if not isinstance(request, dict):
         raise RuntimeError('Launcher request must be an object.')
     if mode != 'run':
@@ -457,7 +457,7 @@ def main(argv=None):
     parser.add_argument('--usb-trace', action='store_true', help='Log USB control requests.')
     args = parser.parse_args(argv)
     if os.geteuid() != 0:
-        parser.error('Root access is required. Use npm start or npm run test in Termux.')
+        parser.error('Root access is required. Use npm run start or npm run test in Termux.')
     if (not math.isfinite(args.start_delay) or not math.isfinite(args.connect_timeout)
             or args.start_delay < 0 or args.connect_timeout <= 0):
         parser.error('Delays must be nonnegative and connection timeout positive and finite.')
@@ -499,7 +499,7 @@ def main(argv=None):
                 hid.sleep(args.start_delay)
                 play_payload(hid, lines if lines is not None else [
                     'gezine is a goat',
-                    'Test OK! Run npm start for the full payload',
+                    'Test OK! Run npm run start for the full payload',
                 ])
                 hid.sleep(.1)
             finally:

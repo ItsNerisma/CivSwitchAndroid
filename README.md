@@ -71,7 +71,7 @@ From the project folder, still in the normal Termux shell:
 npm install
 ```
 
-This installs the compression dependency and checks the phone's prerequisites.
+This installs the compression dependency. **Run `npm install` before `npm run test` or `npm run start`.** Termux will ask for root access when you launch the USB test or exploit, not during installation.
 
 Node.js, npm and Python are needed **on the phone**, even if you transferred the project from a PC.
 
@@ -106,7 +106,7 @@ It should write two test messages in Civ's chat. Wait for the command to finish.
 Once you're good with the test, reconnect your Joy-Con controllers when prompted and return to the chat input field. **Unplug the phone**, then run:
 
 ```sh
-npm start
+npm run start
 ```
 
 The script compresses the current `core.js` in memory, then asks you to connect the phone. The controller should reconnect and start typing the payload. Leave the game and phone running until the command finishes. The default payload types **87 lines** and takes roughly **15 minutes** :slightly_smiling_face:.
@@ -134,7 +134,7 @@ For a custom loader port or JS payload, see [the installer instructions](install
 
 ## Recovery
 
-Both `npm start` and `npm run test` restore USB and the original SELinux state on completion, errors and `Ctrl+C`. If USB restoration fails, SELinux restoration is still attempted and the backup is kept.
+Both `npm run start` and `npm run test` restore USB and the original SELinux state on completion, errors and `Ctrl+C`. If USB restoration fails, SELinux restoration is still attempted and the backup is kept.
 
 A force-stop or `kill -9` can prevent immediate cleanup. Reopen Termux, go to the project folder and run:
 
@@ -149,10 +149,10 @@ Recovery data and the shared session lock live in `/data/local/tmp/civswitch-sta
 ## Useful commands
 
 ```sh
-npm start -- --connect-timeout 120   # More time to plug the phone in
+npm run start -- --connect-timeout 120   # More time to plug the phone in
 npm run test -- --usb-trace          # USB diagnostics
-npm start -- --start-delay 5         # Wait a little longer before typing
-npm start -- --help
+npm run start -- --start-delay 5         # Wait a little longer before typing
+npm run start -- --help
 ```
 
 Once the Remote JS Loader is running, send an extra JS payload with:
@@ -160,8 +160,6 @@ Once the Remote JS Loader is running, send an extra JS payload with:
 ```sh
 python3 send_js.py <console-ip> payloads/helloworld.js
 ```
-
-For development, `npm run check` runs the automated checks without changing USB or SELinux. `npm run test` is the real phone-to-Switch typing test.
 
 ## Credits
 
