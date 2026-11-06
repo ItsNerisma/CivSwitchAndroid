@@ -5,6 +5,7 @@ set -euo pipefail
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 python="$1"
 shift
+
 export PATH="$(dirname -- "$python"):/system/bin:/system/xbin:/sbin:$PATH"
 unset LD_PRELOAD
 
@@ -17,9 +18,9 @@ if ! command -v su >/dev/null 2>&1; then
     exit 1
 fi
 
-# su -c uses Android's shell: quote arguments as POSIX strings, including paths
-# containing spaces or apostrophes. Never interpret project paths as shell code.
+# Quote each argument so Android's shell keeps project paths intact.
 quote() { printf "'%s'" "${1//\'/\'\\\'\'}"; }
+
 command="export PATH=$(quote "$PATH"); unset LD_PRELOAD; exec"
 for arg in "$python" -u "$root/AndroidSwitch/civswitch.py" "$@"; do
     command+=" $(quote "$arg")"

@@ -51,8 +51,10 @@ def interface_descriptors(high_speed=False):
                                    (1, 8, (0x83, 0x03))):
         result.extend(struct.pack('<9B', 9, 4, index, 0, 2, 3, index, index, 0))
         result.extend(hid_descriptor(index))
+
         for address in addresses:
             result.extend(struct.pack('<BBBBHB', 7, 5, address, 3, size, interval))
+
     return bytes(result)
 
 
@@ -89,6 +91,7 @@ class LinuxAIO:
             numbers = (245, 246, 248, 247)
         else:
             raise RuntimeError(f'Linux AIO syscall numbers unknown for {machine}')
+
         self.numbers = dict(zip(('setup', 'destroy', 'submit', 'getevents'), numbers))
         self.libc = C.CDLL(None, use_errno=True)
         self.libc.syscall.restype = C.c_long
@@ -101,6 +104,7 @@ class LinuxAIO:
         if result == -1:
             code = C.get_errno()
             raise OSError(code, f'io_{name}: {os.strerror(code)}')
+
         return result
 
     def submit(self, request):
@@ -144,13 +148,16 @@ class FunctionFSHID:
         self._sent_versions = [None] * 4
         self._buffers = [C.create_string_buffer(64) for _ in range(4)]
         self._requests = []
+
         root = Path(mountpoint)
         self._root = root
+
         try:
             self._ep0 = os.open(root / 'ep0', os.O_RDWR | os.O_NONBLOCK)
             for block in (descriptor_block(), struct.pack('<4I', 2, 16, 0, 0)):
                 if os.write(self._ep0, block) != len(block):
                     raise RuntimeError('Short write registering FunctionFS descriptors')
+
             # ep1=gamepad OUT, ep2=gamepad IN, ep3=keyboard IN, ep4=keyboard OUT.
             for slot in range(4):
                 fd = os.open(root / f'ep{slot + 1}', os.O_RDWR | os.O_NONBLOCK)
@@ -162,6 +169,7 @@ class FunctionFSHID:
                 request.buf = C.addressof(self._buffers[slot])
                 request.nbytes = 8 if slot in (2, 3) else 64
                 self._requests.append(request)
+
             self._aio = LinuxAIO()
             self._thread = threading.Thread(target=self._pump, daemon=True)
             self._thread.start()
@@ -171,6 +179,7 @@ class FunctionFSHID:
 
     def _output(self, index, data):
         self._outputs[index] = data
+
         # Echo gamepad output reports; keyboard output is LEDs.
         if index == 0 and data:
             self._echo.append(data[:64])
@@ -191,9 +200,11 @@ class FunctionFSHID:
         if self._trace:
             print(f'USB SETUP: type={kind:02x} request={request:02x} '
                   f'value={value:04x} interface={index} length={length}', flush=True)
+
         if index not in (0, 1):
             self._stall(kind)
             return
+
         reply = None
         if kind == 0x81 and request == 6:
             if value == 0x2200:
@@ -214,14 +225,17 @@ class FunctionFSHID:
             if request == 9 and value >> 8 == 2 and value & 0xff == 0 and length <= 64:
                 self._output(index, os.read(self._ep0, length))
                 return
+
             if request == 10 and value & 0xff == 0 and length == 0:
                 self._idle[index] = value >> 8
                 os.read(self._ep0, 0)
                 return
+
             if request == 11 and index == 1 and value in (0, 1) and length == 0:
                 self._protocol[index] = value
                 os.read(self._ep0, 0)
                 return
+
         if reply is None:
             self._stall(kind)
         else:
@@ -230,10 +244,12 @@ class FunctionFSHID:
     def _events(self):
         if not select.select([self._ep0], [], [], .002)[0]:
             return
+
         try:
             events = os.read(self._ep0, 48)
             if not events or len(events) % 12:
                 raise RuntimeError('Invalid FunctionFS event stream')
+
             for offset in range(0, len(events), 12):
                 event = events[offset + 8]
                 if event == 4:
@@ -249,6 +265,7 @@ class FunctionFSHID:
                     with self._condition:
                         self._counts = [0, 0]
                         self._completed_versions = [-1, -1]
+
                 if self._trace and event != 4:
                     name = EVENT_NAMES[event] if event < len(EVENT_NAMES) else str(event)
                     print(f'FunctionFS: {name}', flush=True)
@@ -264,21 +281,25 @@ class FunctionFSHID:
                 code = -result
                 if code not in DISCONNECTED | {errno.EAGAIN, errno.EINTR}:
                     raise OSError(code, f'FunctionFS ep{slot + 1}: {os.strerror(code)}')
+
                 if slot in (1, 2):
                     with self._condition:
                         self._write_errors[index] = errno.errorcode.get(code, str(code))
+
                 if code == errno.ENODEV:
                     self._reopen[slot] = True
             elif slot in (1, 2):
                 if result != self._requests[slot].nbytes:
                     raise RuntimeError(f'FunctionFS ep{slot + 1}: short transfer '
                                        f'{result}/{self._requests[slot].nbytes}')
+
                 with self._condition:
                     self._counts[index] += 1
                     self._write_errors[index] = ''
                     version = self._sent_versions[slot]
                     if version is not None:
                         self._completed_versions[index] = version
+
                     self._condition.notify_all()
             else:
                 self._output(index, self._buffers[slot].raw[:result])
@@ -287,24 +308,30 @@ class FunctionFSHID:
         for slot, request in enumerate(self._requests):
             if self._pending[slot]:
                 continue
+
             if self._reopen[slot] and not self._reopen_endpoint(slot):
                 continue
+
             if slot in (1, 2):
                 index = slot - 1
                 with self._condition:
                     report = self._reports[index]
                     version = self._versions[index]
+
                 if slot == 1 and self._echo:
                     report, version = self._echo.popleft(), None
+
                 C.memmove(request.buf, report, len(report))
                 request.nbytes = len(report)
                 self._sent_versions[slot] = version
+
             try:
                 self._aio.submit(request)
                 self._pending[slot] = True
             except OSError as exc:
                 if exc.errno not in DISCONNECTED | {errno.EAGAIN, errno.EINTR}:
                     raise
+
                 if exc.errno == errno.ENODEV:
                     self._reopen[slot] = True
 
@@ -316,12 +343,15 @@ class FunctionFSHID:
         if self._fds[slot] is not None:
             os.close(self._fds[slot])
             self._fds[slot] = None
+
         try:
             fd = os.open(self._root / f'ep{slot + 1}', os.O_RDWR | os.O_NONBLOCK)
         except OSError as exc:
             if exc.errno not in (errno.EBUSY, errno.ENODEV, errno.EAGAIN):
                 raise
+
             return False
+
         self._fds[slot] = fd
         self._requests[slot].fd = fd
         self._reopen[slot] = False
@@ -332,6 +362,7 @@ class FunctionFSHID:
             while not self._stop.is_set():
                 self._events()
                 self._completions()
+
                 if self._enabled:
                     self._submit()
         except BaseException as exc:
@@ -362,6 +393,7 @@ class FunctionFSHID:
                 lambda: self._completed_versions[index] >= version or self._error is not None,
                 timeout)
             self.check()
+
             if not ready:
                 raise RuntimeError(f'Host stopped consuming HID interface {index}')
 
@@ -386,6 +418,7 @@ class FunctionFSHID:
         while time.monotonic() < deadline:
             self.check()
             self._stop.wait(min(.05, max(0, deadline - time.monotonic())))
+
         self.check()
 
     def stop(self):
@@ -394,17 +427,22 @@ class FunctionFSHID:
 
     def close(self):
         self.stop()
+
         if self._thread is not None:
             self._thread.join(timeout=2)
             if self._thread.is_alive():
                 raise RuntimeError('FunctionFS worker still blocked; unbind USB before closing')
+
         if self._aio is not None:
             self._aio.close()
             self._aio = None
+
         for fd in self._fds:
             if fd is not None:
                 os.close(fd)
+
         self._fds.clear()
+
         if self._ep0 is not None:
             os.close(self._ep0)
             self._ep0 = None

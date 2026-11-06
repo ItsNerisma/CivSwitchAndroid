@@ -41,7 +41,7 @@ git clone https://github.com/ItsNerisma/CivSwitchAndroid.git
 cd CivSwitchAndroid
 ```
 
-#### Transfer from a PC
+#### Or transfer from a PC
 
 Clone or download this repository on the PC, then transfer the folder to the phone however you like. **Do not copy `node_modules` from the PC**: install the dependencies on the phone.
 
@@ -65,13 +65,11 @@ The project then lives in Termux's home so npm can install its dependencies norm
 
 ### 3. Install once
 
-From the project folder, still in the normal Termux shell:
+From the project folder, still in the normal Termux shell **without `sudo`**:
 
 ```sh
 npm install
 ```
-
-This installs the compression dependency. **Run `npm install` before `npm run test` or `npm run start`.** Termux will ask for root access when you launch the USB test or exploit, not during installation.
 
 Node.js, npm and Python are needed **on the phone**, even if you transferred the project from a PC.
 
@@ -103,7 +101,7 @@ It should write two test messages in Civ's chat. Wait for the command to finish.
 
 ### 3. Run the exploit
 
-Once you're good with the test, reconnect your Joy-Con controllers when prompted and return to the chat input field. **Unplug the phone**, then run:
+Once you're good with the test, reconnect your Joy-Con controllers when prompted then run:
 
 ```sh
 npm run start
@@ -130,7 +128,6 @@ For a custom loader port or JS payload, see [the installer instructions](install
 
 > [!NOTE]
 > You can also run this from a PC with Node.js, npm and Python 3 installed: run `npm install` once in the PC's copy of the project, then the same `npm run persist` command. The PC does not need root or ADB. On Windows, Python must be available as `python`.
-
 
 ## Recovery
 
