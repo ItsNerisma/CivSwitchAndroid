@@ -16,8 +16,8 @@ Usage:
                  (the shipped default is the Remote JS Loader: after
                  reboot, Load Game brings the loader up on this port)
 
-Needs: node + terser (npm install) in this directory,
-and the Remote JS Loader already running on the console (Pico bootstrap
+Needs: node + terser (npm install at the repository root),
+and the Remote JS Loader already running on the console (Android bootstrap
 or a previously installed trigger).
 """
 import base64, io, json, os, shutil, socket, subprocess, sys, tempfile, time
