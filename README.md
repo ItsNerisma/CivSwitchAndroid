@@ -58,7 +58,7 @@ Node.js, npm and Python are needed **on the phone**, even if you transferred the
 
 I mean, yeah, plug it !
 
-### 1. Open the chat
+### 2. Open the chat
 
 On the Switch:
 
@@ -69,7 +69,7 @@ On the Switch:
 
 **DO NOT OPEN THE KEYBOARD**, just focus the chat view with the right stick by clicking.
 
-### 2. Test the thing
+### 3. Test the thing
 
 From the project folder in a non root Termux shell, run:
 
@@ -81,7 +81,7 @@ The script saves the initial SELinux state, runs `setenforce 0` if needed, and p
 
 It should write two test messages in Civ's chat. Wait for the command to finish. At the end it will disconnect the emulated controller from the Switch, it's normal. Android USB and the initial SELinux state are restored automatically.
 
-### 3. Run the exploit
+### 4. Run the exploit
 
 Once you're good with the test, reconnect your Joy-Con controllers when prompted then run:
 
@@ -96,7 +96,7 @@ The script compresses the current `core.js` in memory, then asks you to connect 
 
 Now, just wait until the console displays **`Awaiting payload at <console-ip>:9026`**. The **Remote JS Loader** is now ready :tada:
 
-### 4. Persist the exploit (optional)
+### 5. Persist the exploit (optional)
 
 You can do this **directly from the phone**, no PC needed :D Connect the phone to the same local network as the Switch, then from the project folder in Termux:
 
